@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { 
   Menu, 
@@ -11,13 +11,27 @@ import {
   LogIn,
   UserPlus,
   Mail,
-  Info
+  Info,
+  Shield
 } from 'lucide-react';
 import './Layout.css';
 
 const Layout = ({ children }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        setIsAdmin(user.is_admin === true);
+      } catch (e) {
+        setIsAdmin(false);
+      }
+    }
+  }, [location]);
 
   const navigation = [
     { name: 'Home', path: '/', icon: Home },
@@ -149,6 +163,15 @@ const Layout = ({ children }) => {
                 <li><Link to="/messages">Messages</Link></li>
               </ul>
             </div>
+
+            {isAdmin && (
+              <div className="footer-section">
+                <h4>Administration</h4>
+                <ul>
+                  <li><Link to="/admin">Admin Panel</Link></li>
+                </ul>
+              </div>
+            )}
 
             <div className="footer-section">
               <h4>Contact</h4>

@@ -8,6 +8,7 @@ import {
   EyeOff,
   ArrowLeft 
 } from 'lucide-react';
+import axios from 'axios';
 import './Login.css';
 
 const Login = () => {
@@ -32,27 +33,29 @@ const Login = () => {
     setIsLoading(true);
     setError('');
 
-    // Simulate API call
-    setTimeout(() => {
-      // Mock successful login
-      if (formData.email === 'user@example.com' && formData.password === 'password123') {
-        localStorage.setItem('token', 'mock-jwt-token');
-        localStorage.setItem('user', JSON.stringify({
-          id: 1,
-          email: formData.email,
-          first_name: 'John',
-          last_name: 'Doe',
-          profile_image: null,
-          is_verified: true,
-          rating_avg: 4.8,
-          total_reviews: 24
-        }));
-        navigate('/dashboard');
-      } else {
-        setError('Invalid email or password');
+    try {
+      const response = await axios.post('/api/auth/login', {
+        email: formData.email,
+        password: formData.password
+      });
+
+      if (response.data.success) {
+        const { token, user } = response.data.data;
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        // Redirect based on role
+        if (user.is_admin) {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
       }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Invalid email or password');
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -140,15 +143,6 @@ const Login = () => {
             Don't have an account? <Link to="/register">Sign up here</Link>
           </div>
         </form>
-
-        {/* Demo Credentials */}
-        <div className="demo-credentials">
-          <h3>Try with Demo Account</h3>
-          <div className="demo-info">
-            <p><strong>Email:</strong> user@example.com</p>
-            <p><strong>Password:</strong> password123</p>
-          </div>
-        </div>
       </div>
     </div>
   );

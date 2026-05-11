@@ -9,6 +9,7 @@ import Search from './pages/Search';
 import Dashboard from './pages/Dashboard';
 import Messages from './pages/Messages';
 import CreateService from './pages/CreateService';
+import Admin from './pages/Admin';
 import './App.css';
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="messages" element={<Messages />} />
           <Route path="create-service" element={<CreateService />} />
+        <Route path="admin" element={<Admin />} />
         </Route>
       </Routes>
     </Router>

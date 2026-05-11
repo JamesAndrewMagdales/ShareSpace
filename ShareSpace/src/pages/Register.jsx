@@ -7,8 +7,10 @@ import {
   User, 
   Eye, 
   EyeOff,
-  ArrowLeft 
+  ArrowLeft,
+  Shield
 } from 'lucide-react';
+import axios from 'axios';
 import './Login.css';
 
 const Register = () => {
@@ -17,7 +19,8 @@ const Register = () => {
     last_name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    admin_code: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -42,22 +45,32 @@ const Register = () => {
       return;
     }
 
-    // Simulate API call
-    setTimeout(() => {
-      localStorage.setItem('token', 'mock-jwt-token');
-      localStorage.setItem('user', JSON.stringify({
-        id: 1,
-        email: formData.email,
+    try {
+      const response = await axios.post('/api/auth/register', {
         first_name: formData.first_name,
         last_name: formData.last_name,
-        profile_image: null,
-        is_verified: false,
-        rating_avg: 0,
-        total_reviews: 0
-      }));
-      navigate('/dashboard');
+        email: formData.email,
+        password: formData.password,
+        admin_code: formData.admin_code || undefined
+      });
+
+      if (response.data.success) {
+        const { token, user } = response.data.data;
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        // Redirect to admin panel if admin, else dashboard
+        if (user.is_admin) {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -169,6 +182,27 @@ const Register = () => {
                 required
               />
             </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="admin_code">
+              <Shield size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+              Admin Code (optional)
+            </label>
+            <div className="input-group">
+              <input
+                type="text"
+                id="admin_code"
+                name="admin_code"
+                placeholder="Enter admin code to create admin account"
+                value={formData.admin_code}
+                onChange={handleChange}
+                style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '1rem', color: '#1f2937', flex: 1 }}
+              />
+            </div>
+            <small style={{ color: '#6b7280', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+              Leave blank for regular user account. Contact site owner for admin code.
+            </small>
           </div>
 
           <button type="submit" className="login-btn" disabled={isLoading}>
