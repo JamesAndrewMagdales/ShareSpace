@@ -26,8 +26,8 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="messages" element={<Messages />} />
           <Route path="create-service" element={<CreateService />} />
-        <Route path="admin" element={<Admin />} />
         </Route>
+        <Route path="admin" element={<Admin />} />
       </Routes>
     </Router>
   );

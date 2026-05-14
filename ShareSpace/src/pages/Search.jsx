@@ -10,6 +10,7 @@ import {
   List,
   ArrowUpDown
 } from 'lucide-react';
+import axios from 'axios';
 import './Search.css';
 
 const Search = () => {
@@ -131,14 +132,38 @@ const Search = () => {
   ];
 
   useEffect(() => {
-    // Simulate loading services
-    setIsLoading(true);
-    setTimeout(() => {
-      setServices(mockServices);
-      setTotalPages(3);
-      setIsLoading(false);
-    }, 500);
-  }, [searchParams]);
+    const fetchServices = async () => {
+      setIsLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (searchQuery) params.set('search', searchQuery);
+        if (location) params.set('city', location);
+        if (selectedCategory) params.set('category', selectedCategory);
+        if (priceRange.min) params.set('minPrice', priceRange.min);
+        if (priceRange.max) params.set('maxPrice', priceRange.max);
+        if (minRating) params.set('minRating', minRating);
+        params.set('page', page);
+        params.set('limit', 12);
+        params.set('sortBy', sortBy);
+
+        const response = await axios.get(`/api/services?${params.toString()}`);
+        
+        if (response.data.success) {
+          setServices(response.data.data.services || []);
+          setTotalPages(response.data.data.pagination?.totalPages || 1);
+        }
+      } catch (err) {
+        console.error('Error fetching services:', err);
+        // Fallback to mock data if API fails
+        setServices(mockServices);
+        setTotalPages(3);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchServices();
+  }, [searchParams, searchQuery, location, selectedCategory, priceRange, minRating, sortBy, page]);
 
   const handleSearch = (e) => {
     e.preventDefault();

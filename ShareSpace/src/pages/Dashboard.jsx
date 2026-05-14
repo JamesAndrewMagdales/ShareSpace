@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   User, 
   Star, 
@@ -14,40 +14,114 @@ import {
   AlertCircle,
   TrendingUp,
   Heart,
-  Shield
+  Shield,
+  Edit,
+  Trash2,
+  X
 } from 'lucide-react';
+import axios from 'axios';
 import './Dashboard.css';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [services, setServices] = useState([]);
   const [requests, setRequests] = useState([]);
   const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingService, setEditingService] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    description: '',
+    price: '',
+    price_type: 'Fixed',
+    city: '',
+    location: '',
+    is_remote: false,
+    duration_minutes: 60,
+    is_available: true
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) {
-      setUser(JSON.parse(userData));
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+    } else {
+      navigate('/login');
+      return;
     }
     
-    // Mock data
-    setServices([
-      { id: 1, title: 'Web Development', status: 'Active', views: 124, requests: 5 },
-      { id: 2, title: 'Graphic Design', status: 'Active', views: 89, requests: 3 },
-    ]);
-
-    setRequests([
-      { id: 1, service: 'Web Development', client: 'Sarah Johnson', date: '2024-01-15', status: 'Pending' },
-      { id: 2, service: 'Graphic Design', client: 'Mike Chen', date: '2024-01-14', status: 'Accepted' },
-      { id: 3, service: 'Web Development', client: 'Emma Wilson', date: '2024-01-10', status: 'Completed' },
-    ]);
-
-    setReviews([
-      { id: 1, rating: 5, comment: 'Excellent work! Very professional.', author: 'Sarah J.', date: '2024-01-12' },
-      { id: 2, rating: 4, comment: 'Great service, would recommend.', author: 'Mike C.', date: '2024-01-08' },
-    ]);
+    fetchDashboardData();
   }, []);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user'));
+      
+      if (!user || !token) {
+        navigate('/login');
+        return;
+      }
+
+      // Fetch user's services
+      try {
+        const servicesResponse = await axios.get(`/api/services/provider/${user.id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (servicesResponse.data.success) {
+          setServices(servicesResponse.data.data.services || []);
+        }
+      } catch (err) {
+        console.error('Error fetching services:', err);
+        // Use empty array if fetch fails
+        setServices([]);
+      }
+
+      // Fetch user's reviews
+      try {
+        const reviewsResponse = await axios.get(`/api/users/${user.id}/reviews`);
+        
+        if (reviewsResponse.data.success) {
+          setReviews(reviewsResponse.data.data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching reviews:', err);
+        setReviews([]);
+      }
+
+      // For requests, we'll use mock data for now as the requests API needs implementation
+      setRequests([
+        { id: 1, service: 'Web Development', client: 'Sarah Johnson', date: '2024-01-15', status: 'Pending' },
+        { id: 2, service: 'Graphic Design', client: 'Mike Chen', date: '2024-01-14', status: 'Accepted' },
+        { id: 3, service: 'Web Development', client: 'Emma Wilson', date: '2024-01-10', status: 'Completed' },
+      ]);
+
+    } catch (err) {
+      setError('Failed to load dashboard data');
+      console.error('Dashboard error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const stats = {
     totalServices: services.length,
@@ -76,6 +150,87 @@ const Dashboard = () => {
       case 'Rejected': return 'status-rejected';
       case 'Cancelled': return 'status-cancelled';
       default: return '';
+    }
+  };
+
+  // Delete service handler
+  const openDeleteModal = (service) => {
+    setServiceToDelete(service);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!serviceToDelete) return;
+    
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.delete(`/api/services/${serviceToDelete.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        setServices(services.filter(s => s.id !== serviceToDelete.id));
+        setShowDeleteModal(false);
+        setServiceToDelete(null);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete service');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Edit service handler
+  const openEditModal = (service) => {
+    setEditingService(service);
+    setEditFormData({
+      title: service.title || '',
+      description: service.description || '',
+      price: service.price || '',
+      price_type: service.price_type || 'Fixed',
+      city: service.city || '',
+      location: service.location || '',
+      is_remote: service.is_remote || false,
+      duration_minutes: service.duration_minutes || 60,
+      is_available: service.is_available !== undefined ? service.is_available : true
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setEditFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingService) return;
+
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.put(`/api/services/${editingService.id}`, editFormData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        // Update the service in the list
+        setServices(services.map(s => 
+          s.id === editingService.id 
+            ? { ...s, ...editFormData } 
+            : s
+        ));
+        setShowEditModal(false);
+        setEditingService(null);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update service');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -168,6 +323,10 @@ const Dashboard = () => {
               <Plus size={20} />
               <span>Create New Service</span>
             </Link>
+            <button className="logout-btn" onClick={() => setShowLogoutModal(true)}>
+              <LogOut size={20} />
+              <span>Logout</span>
+            </button>
           </div>
         </aside>
 
@@ -224,37 +383,62 @@ const Dashboard = () => {
                 </Link>
               </div>
 
-              <div className="services-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Service</th>
-                      <th>Status</th>
-                      <th>Views</th>
-                      <th>Requests</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {services.map((service) => (
-                      <tr key={service.id}>
-                        <td>{service.title}</td>
-                        <td>
-                          <span className={`status-badge ${getStatusColor(service.status)}`}>
-                            {service.status}
-                          </span>
-                        </td>
-                        <td>{service.views}</td>
-                        <td>{service.requests}</td>
-                        <td>
-                          <button className="action-btn">Edit</button>
-                          <button className="action-btn delete">Delete</button>
-                        </td>
+              {loading ? (
+                <div className="loading-state">
+                  <div className="spinner"></div>
+                  <p>Loading services...</p>
+                </div>
+              ) : (
+                <div className="services-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Service</th>
+                        <th>Status</th>
+                        <th>Views</th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {services.length === 0 ? (
+                        <tr>
+                          <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
+                            No services yet. <Link to="/create-service">Create your first service</Link>
+                          </td>
+                        </tr>
+                      ) : (
+                        services.map((service) => (
+                          <tr key={service.id}>
+                            <td>{service.title}</td>
+                            <td>
+                              <span className={`status-badge ${getStatusColor(service.status || 'Active')}`}>
+                                {service.status || 'Active'}
+                              </span>
+                            </td>
+                            <td>{service.views_count || service.views || 0}</td>
+                            <td>
+                              <button 
+                                className="action-btn edit" 
+                                onClick={() => openEditModal(service)}
+                                title="Edit service"
+                              >
+                                <Edit size={16} />
+                              </button>
+                              <button 
+                                className="action-btn delete" 
+                                onClick={() => openDeleteModal(service)}
+                                title="Delete service"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -391,6 +575,213 @@ const Dashboard = () => {
           )}
         </main>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Confirm Delete</h2>
+              <button className="close-btn" onClick={() => setShowDeleteModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <AlertCircle size={48} style={{ color: '#ef4444', marginBottom: '1rem' }} />
+              <p>Are you sure you want to delete this service?</p>
+              <p style={{ fontWeight: 'bold', marginTop: '0.5rem' }}>
+                "{serviceToDelete?.title}"
+              </p>
+              <p style={{ color: '#6b7280', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+                This action cannot be undone. The service will be marked as inactive.
+              </p>
+            </div>
+            <div className="modal-actions">
+              <button 
+                className="cancel-btn" 
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button 
+                className="submit-btn delete" 
+                onClick={confirmDelete}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Deleting...' : 'Delete Service'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Service Modal */}
+      {showEditModal && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal-content modal-large" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit Service</h2>
+              <button className="close-btn" onClick={() => setShowEditModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleEditSubmit}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Service Title *</label>
+                  <input
+                    type="text"
+                    name="title"
+                    value={editFormData.title}
+                    onChange={handleEditChange}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Description *</label>
+                  <textarea
+                    name="description"
+                    value={editFormData.description}
+                    onChange={handleEditChange}
+                    rows="4"
+                    required
+                  />
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Price (₱)</label>
+                    <input
+                      type="number"
+                      name="price"
+                      value={editFormData.price}
+                      onChange={handleEditChange}
+                      min="0"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Price Type</label>
+                    <select
+                      name="price_type"
+                      value={editFormData.price_type}
+                      onChange={handleEditChange}
+                    >
+                      <option value="Fixed">Fixed</option>
+                      <option value="Hourly">Hourly</option>
+                      <option value="Negotiable">Negotiable</option>
+                      <option value="Free">Free</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>City</label>
+                    <input
+                      type="text"
+                      name="city"
+                      value={editFormData.city}
+                      onChange={handleEditChange}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Location</label>
+                    <input
+                      type="text"
+                      name="location"
+                      value={editFormData.location}
+                      onChange={handleEditChange}
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Duration (minutes)</label>
+                    <input
+                      type="number"
+                      name="duration_minutes"
+                      value={editFormData.duration_minutes}
+                      onChange={handleEditChange}
+                      min="15"
+                    />
+                  </div>
+                  <div className="form-group checkbox-group">
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="is_remote"
+                        checked={editFormData.is_remote}
+                        onChange={handleEditChange}
+                      />
+                      Available remotely
+                    </label>
+                  </div>
+                </div>
+                <div className="form-group checkbox-group">
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="is_available"
+                      checked={editFormData.is_available}
+                      onChange={handleEditChange}
+                    />
+                    Available for bookings
+                  </label>
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button 
+                  type="button" 
+                  className="cancel-btn" 
+                  onClick={() => setShowEditModal(false)}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="submit-btn" disabled={isSubmitting}>
+                  {isSubmitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div className="modal-overlay" onClick={() => setShowLogoutModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Confirm Logout</h2>
+              <button className="close-btn" onClick={() => setShowLogoutModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+                <LogOut size={48} style={{ color: '#6b7280' }} />
+              </div>
+              <p style={{ textAlign: 'center' }}>Are you sure you want to logout?</p>
+              <p style={{ color: '#6b7280', fontSize: '0.875rem', textAlign: 'center', marginTop: '0.5rem' }}>
+                You will be redirected to the login page.
+              </p>
+            </div>
+            <div className="modal-actions">
+              <button 
+                className="cancel-btn" 
+                onClick={() => setShowLogoutModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="submit-btn logout" 
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

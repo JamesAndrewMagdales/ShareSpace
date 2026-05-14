@@ -10,20 +10,24 @@ import {
   Calendar,
   AlertCircle,
   CheckCircle,
-  X
+  X,
+  UserCheck,
+  LogOut
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Admin.css';
 
 const Admin = () => {
-  const [admins, setAdmins] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showModal, setShowModal] = useState(false);
-  const [editingAdmin, setEditingAdmin] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -35,9 +39,17 @@ const Admin = () => {
     country: '',
     phone: '',
     bio: '',
-    is_active: true
+    is_active: true,
+    is_admin: false
   });
   const [formErrors, setFormErrors] = useState({});
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
 
   const limit = 10;
 
@@ -49,14 +61,15 @@ const Admin = () => {
         setError('Access denied. Admin privileges required.');
         return;
       }
+      setCurrentUser(user);
     } else {
       setError('Please log in to access this page.');
       return;
     }
-    fetchAdmins();
+    fetchUsers();
   }, [currentPage, searchTerm]);
 
-  const fetchAdmins = async () => {
+  const fetchUsers = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
@@ -66,23 +79,23 @@ const Admin = () => {
         search: searchTerm
       });
       
-      const response = await axios.get(`/api/admins?${params}`, {
+      const response = await axios.get(`/api/users?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       if (response.data.success) {
-        setAdmins(response.data.data.admins);
-        setTotalPages(response.data.data.pagination.totalPages);
+        setUsers(response.data.data);
+        setTotalPages(response.data.pagination?.pages || 1);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load admins');
+      setError(err.response?.data?.message || 'Failed to load users');
     } finally {
       setLoading(false);
     }
   };
 
   const openCreateModal = () => {
-    setEditingAdmin(null);
+    setEditingUser(null);
     setFormData({
       email: '',
       password: '',
@@ -94,26 +107,28 @@ const Admin = () => {
       country: '',
       phone: '',
       bio: '',
-      is_active: true
+      is_active: true,
+      is_admin: false
     });
     setFormErrors({});
     setShowModal(true);
   };
 
-  const openEditModal = (admin) => {
-    setEditingAdmin(admin);
+  const openEditModal = (user) => {
+    setEditingUser(user);
     setFormData({
-      email: admin.email,
+      email: user.email,
       password: '',
-      first_name: admin.first_name,
-      last_name: admin.last_name,
-      location: admin.location || '',
-      city: admin.city || '',
-      state: admin.state || '',
-      country: admin.country || '',
-      phone: admin.phone || '',
-      bio: admin.bio || '',
-      is_active: admin.is_active
+      first_name: user.first_name,
+      last_name: user.last_name,
+      location: user.location || '',
+      city: user.city || '',
+      state: user.state || '',
+      country: user.country || '',
+      phone: user.phone || '',
+      bio: user.bio || '',
+      is_active: user.is_active,
+      is_admin: user.is_admin || false
     });
     setFormErrors({});
     setShowModal(true);
@@ -132,7 +147,7 @@ const Admin = () => {
     if (!formData.email) errors.email = 'Email is required';
     if (!formData.first_name) errors.first_name = 'First name is required';
     if (!formData.last_name) errors.last_name = 'Last name is required';
-    if (!editingAdmin && !formData.password) errors.password = 'Password is required for new admins';
+    if (!editingUser && !formData.password) errors.password = 'Password is required for new users';
     if (formData.password && formData.password.length < 6) errors.password = 'Password must be at least 6 characters';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -147,42 +162,42 @@ const Admin = () => {
       const payload = { ...formData };
       if (!payload.password) delete payload.password;
 
-      if (editingAdmin) {
-        await axios.put(`/api/admins/${editingAdmin.id}`, payload, {
+      if (editingUser) {
+        await axios.put(`/api/users/${editingUser.id}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
       } else {
-        await axios.post('/api/admins', payload, {
+        await axios.post('/api/auth/register', payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
       }
       setShowModal(false);
-      fetchAdmins();
+      fetchUsers();
     } catch (err) {
       setError(err.response?.data?.message || 'Operation failed');
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to deactivate this admin?')) return;
+    if (!window.confirm('Are you sure you want to deactivate this user?')) return;
     
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/admins/${id}`, {
+      await axios.delete(`/api/users/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      fetchAdmins();
+      fetchUsers();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to deactivate admin');
+      setError(err.response?.data?.message || 'Failed to deactivate user');
     }
   };
 
-  const getAdminStatus = (admin) => {
-    if (!admin.is_active) return { label: 'Inactive', class: 'inactive' };
+  const getUserStatus = (user) => {
+    if (!user.is_active) return { label: 'Inactive', class: 'inactive' };
     return { label: 'Active', class: 'active' };
   };
 
-  if (loading && admins.length === 0) {
+  if (loading && users.length === 0) {
     return <div className="admin-loading">Loading...</div>;
   }
 
@@ -192,14 +207,23 @@ const Admin = () => {
         <div className="admin-title-section">
           <Shield size={32} />
           <div>
-            <h1>Admin Management</h1>
-            <p>Manage administrator accounts and permissions</p>
+            <h1>Users Management</h1>
+            <p>Manage all users and administrators</p>
+            {currentUser && (
+              <p className="admin-user-greeting">Admin: {currentUser.first_name} {currentUser.last_name}</p>
+            )}
           </div>
         </div>
-        <button className="add-admin-btn" onClick={openCreateModal}>
-          <Plus size={20} />
-          Add Admin
-        </button>
+        <div className="admin-header-actions">
+          <button className="add-admin-btn" onClick={openCreateModal}>
+            <Plus size={20} />
+            Add User
+          </button>
+          <button className="logout-btn" onClick={handleLogout}>
+            <LogOut size={20} />
+            Logout
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -215,7 +239,7 @@ const Admin = () => {
           <Search size={20} />
           <input
             type="text"
-            placeholder="Search admins by name or email..."
+            placeholder="Search users by name or email..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -231,6 +255,7 @@ const Admin = () => {
             <tr>
               <th>User</th>
               <th>Email</th>
+              <th>Position</th>
               <th>Status</th>
               <th>Verified</th>
               <th>Joined</th>
@@ -238,26 +263,32 @@ const Admin = () => {
             </tr>
           </thead>
           <tbody>
-            {admins.map((admin) => {
-              const status = getAdminStatus(admin);
+            {users.map((user) => {
+              const status = getUserStatus(user);
               return (
-                <tr key={admin.id}>
+                <tr key={user.id}>
                   <td>
                     <div className="admin-user">
                       <div className="admin-avatar">
                         <User size={20} />
                       </div>
                       <div>
-                        <div className="admin-name">{`${admin.first_name} ${admin.last_name}`}</div>
-                        <div className="admin-id">ID: {admin.id}</div>
+                        <div className="admin-name">{`${user.first_name} ${user.last_name}`}</div>
+                        <div className="admin-id">ID: {user.id}</div>
                       </div>
                     </div>
                   </td>
                   <td>
                     <div className="admin-email">
                       <Mail size={14} />
-                      {admin.email}
+                      {user.email}
                     </div>
+                  </td>
+                  <td>
+                    <span className={`position-badge ${user.is_admin ? 'admin' : 'user'}`}>
+                      <UserCheck size={14} />
+                      {user.is_admin ? 'Admin' : 'User'}
+                    </span>
                   </td>
                   <td>
                     <span className={`status-badge ${status.class}`}>
@@ -266,7 +297,7 @@ const Admin = () => {
                     </span>
                   </td>
                   <td>
-                    {admin.is_verified ? (
+                    {user.is_verified ? (
                       <span className="verified-badge"><CheckCircle size={14} /> Verified</span>
                     ) : (
                       <span className="unverified-badge">Unverified</span>
@@ -275,23 +306,23 @@ const Admin = () => {
                   <td>
                     <div className="admin-date">
                       <Calendar size={14} />
-                      {new Date(admin.created_at).toLocaleDateString()}
+                      {new Date(user.created_at).toLocaleDateString()}
                     </div>
                   </td>
                   <td>
                     <div className="admin-actions">
                       <button 
                         className="action-btn edit"
-                        onClick={() => openEditModal(admin)}
-                        title="Edit admin"
+                        onClick={() => openEditModal(user)}
+                        title="Edit user"
                       >
                         <Edit size={16} />
                       </button>
                       <button 
                         className="action-btn delete"
-                        onClick={() => handleDelete(admin.id)}
-                        title="Deactivate admin"
-                        disabled={!admin.is_active}
+                        onClick={() => handleDelete(user.id)}
+                        title="Deactivate user"
+                        disabled={!user.is_active}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -303,11 +334,11 @@ const Admin = () => {
           </tbody>
         </table>
 
-        {admins.length === 0 && (
+        {users.length === 0 && (
           <div className="empty-state">
             <Shield size={48} />
-            <h3>No admin users found</h3>
-            <p>Add your first administrator to get started</p>
+            <h3>No users found</h3>
+            <p>Add your first user to get started</p>
           </div>
         )}
       </div>
@@ -334,7 +365,7 @@ const Admin = () => {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingAdmin ? 'Edit Admin' : 'Add New Admin'}</h2>
+              <h2>{editingUser ? 'Edit User' : 'Add New User'}</h2>
               <button className="close-btn" onClick={() => setShowModal(false)}>
                 <X size={24} />
               </button>
@@ -376,13 +407,13 @@ const Admin = () => {
                 {formErrors.email && <span className="error-text">{formErrors.email}</span>}
               </div>
               <div className="form-group">
-                <label>{editingAdmin ? 'New Password (optional)' : 'Password *'}</label>
+                <label>{editingUser ? 'New Password (optional)' : 'Password *'}</label>
                 <input
                   type="password"
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  placeholder={editingAdmin ? 'Leave blank to keep current' : ''}
+                  placeholder={editingUser ? 'Leave blank to keep current' : ''}
                   className={formErrors.password ? 'error' : ''}
                 />
                 {formErrors.password && <span className="error-text">{formErrors.password}</span>}
@@ -420,7 +451,18 @@ const Admin = () => {
                   rows="3"
                 />
               </div>
-              {editingAdmin && (
+              <div className="form-group checkbox-group">
+                <label>
+                  <input
+                    type="checkbox"
+                    name="is_admin"
+                    checked={formData.is_admin}
+                    onChange={handleInputChange}
+                  />
+                  Admin User
+                </label>
+              </div>
+              {editingUser && (
                 <div className="form-group checkbox-group">
                   <label>
                     <input
@@ -438,7 +480,7 @@ const Admin = () => {
                   Cancel
                 </button>
                 <button type="submit" className="submit-btn">
-                  {editingAdmin ? 'Update Admin' : 'Create Admin'}
+                  {editingUser ? 'Update User' : 'Create User'}
                 </button>
               </div>
             </form>

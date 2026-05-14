@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation, Outlet } from 'react-router-dom';
+import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { 
   Menu, 
   X, 
@@ -12,17 +12,23 @@ import {
   UserPlus,
   Mail,
   Info,
-  Shield
+  Shield,
+  LogOut
 } from 'lucide-react';
 import './Layout.css';
 
-const Layout = ({ children }) => {
+const Layout = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
+    setIsLoggedIn(!!token);
     if (userData) {
       try {
         const user = JSON.parse(userData);
@@ -33,25 +39,25 @@ const Layout = ({ children }) => {
     }
   }, [location]);
 
-  const navigation = [
-    { name: 'Home', path: '/', icon: Home },
-    { name: 'Search', path: '/search', icon: Search },
-    { name: 'About', path: '/about', icon: Info },
-    { name: 'Contact', path: '/contact', icon: Mail },
-  ];
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setIsLoggedIn(false);
+    navigate('/');
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
+  const navigation = [];
 
   const userNavigation = [
     { name: 'Login', path: '/login', icon: LogIn },
     { name: 'Register', path: '/register', icon: UserPlus },
-  ];
-
-  const menuItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: Home },
-    { name: 'Search Services', path: '/search', icon: Search },
-    { name: 'Messages', path: '/messages', icon: MessageCircle },
-    { name: 'Create Service', path: '/create-service', icon: PlusCircle },
-    { name: 'About', path: '/about', icon: Info },
-    { name: 'Contact', path: '/contact', icon: Mail },
   ];
 
   const isActive = (path) => {
@@ -83,15 +89,39 @@ const Layout = ({ children }) => {
 
           {/* User Actions */}
           <div className="header-actions">
-            <Link to="/login" className="action-btn login-btn">
-              <LogIn size={20} />
-              <span>Login</span>
-            </Link>
-            <Link to="/register" className="action-btn register-btn">
-              <UserPlus size={20} />
-              <span>Register</span>
-            </Link>
+            {isLoggedIn ? (
+              <>
+                <button className="action-btn logout-btn" onClick={handleLogout}>
+                  <LogOut size={20} />
+                  <span>Logout</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="auth-btn login">
+                  <LogIn size={20} />
+                  <span>Login</span>
+                </Link>
+                <Link to="/register" className="auth-btn register">
+                  <UserPlus size={20} />
+                  <span>Register</span>
+                </Link>
+              </>
+            )}
           </div>
+
+          {/* Search Bar (Centered) */}
+          <form onSubmit={handleSearch} className="header-search centered-search">
+            <input
+              type="text"
+              placeholder="Search services..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <button type="submit">
+              <Search size={18} />
+            </button>
+          </form>
 
           {/* Mobile Menu Button */}
           <button
@@ -116,17 +146,40 @@ const Layout = ({ children }) => {
             </Link>
           ))}
           <div className="mobile-nav-divider"></div>
-          {userNavigation.map((item) => (
-            <Link
-              key={item.name}
-              to={item.path}
-              className={`mobile-nav-link ${isActive(item.path) ? 'active' : ''}`}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <item.icon size={20} />
-              <span>{item.name}</span>
-            </Link>
-          ))}
+          {isLoggedIn ? (
+            <>
+              <Link
+                to="/dashboard"
+                className={`mobile-nav-link ${isActive('/dashboard') ? 'active' : ''}`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <Home size={20} />
+                <span>Dashboard</span>
+              </Link>
+              <button
+                className="mobile-nav-link logout-btn"
+                onClick={() => {
+                  handleLogout();
+                  setIsMenuOpen(false);
+                }}
+              >
+                <LogOut size={20} />
+                <span>Logout</span>
+              </button>
+            </>
+          ) : (
+            userNavigation.map((item) => (
+              <Link
+                key={item.name}
+                to={item.path}
+                className={`mobile-nav-link ${isActive(item.path) ? 'active' : ''}`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <item.icon size={20} />
+                <span>{item.name}</span>
+              </Link>
+            ))
+          )}
         </nav>
       </header>
 
@@ -145,12 +198,12 @@ const Layout = ({ children }) => {
             </div>
             
             <div className="footer-section">
-              <h4>Quick Links</h4>
+              <h4>Platform</h4>
               <ul>
-                <li><Link to="/">Home</Link></li>
                 <li><Link to="/search">Search Services</Link></li>
-                <li><Link to="/about">About Us</Link></li>
-                <li><Link to="/contact">Contact Us</Link></li>
+                <li><Link to="/register">Get Started</Link></li>
+                <li><Link to="/create-service">Create Service</Link></li>
+                <li><Link to="/dashboard">Dashboard</Link></li>
               </ul>
             </div>
 

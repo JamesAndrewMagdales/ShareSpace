@@ -55,16 +55,7 @@ const Register = () => {
       });
 
       if (response.data.success) {
-        const { token, user } = response.data.data;
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
-        
-        // Redirect to admin panel if admin, else dashboard
-        if (user.is_admin) {
-          navigate('/admin');
-        } else {
-          navigate('/dashboard');
-        }
+        navigate('/login', { state: { registered: true } });
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');

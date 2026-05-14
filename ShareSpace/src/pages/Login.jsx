@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
   LogIn, 
   Mail, 
@@ -19,7 +19,15 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+
+  React.useEffect(() => {
+    if (location.state?.registered) {
+      setSuccess('Account created successfully! Please log in.');
+    }
+  }, [location]);
 
   const handleChange = (e) => {
     setFormData({
@@ -52,7 +60,9 @@ const Login = () => {
         }
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid email or password');
+      // Display specific error message from backend
+      const errorMessage = err.response?.data?.message || 'An error occurred during login';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -73,12 +83,17 @@ const Login = () => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="login-form">
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
+<form onSubmit={handleSubmit} className="login-form">
+           {error && (
+             <div className="error-message">
+               {error}
+             </div>
+           )}
+           {success && (
+             <div className="success-message">
+               {success}
+             </div>
+           )}
 
           <div className="form-group">
             <label htmlFor="email">Email Address</label>

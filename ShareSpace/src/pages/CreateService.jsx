@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Plus, 
   Upload, 
   X,
-  ArrowLeft
+  ArrowLeft,
+  AlertCircle,
+  CheckCircle
 } from 'lucide-react';
+import axios from 'axios';
 import './CreateService.css';
 
 const CreateService = () => {
@@ -21,21 +24,40 @@ const CreateService = () => {
     isRemote: false,
     duration: 60
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [categories, setCategories] = useState([]);
 
-  const categories = [
-    { id: 1, name: 'Tech & IT' },
-    { id: 2, name: 'Home & Garden' },
-    { id: 3, name: 'Teaching & Tutoring' },
-    { id: 4, name: 'Health & Wellness' },
-    { id: 5, name: 'Beauty & Personal Care' },
-    { id: 6, name: 'Automotive' },
-    { id: 7, name: 'Events & Photography' },
-    { id: 8, name: 'Writing & Translation' },
-    { id: 9, name: 'Art & Craft' },
-    { id: 10, name: 'Business & Legal' },
-    { id: 11, name: 'Moving & Delivery' },
-    { id: 12, name: 'Cleaning & Laundry' }
-  ];
+  useEffect(() => {
+    // Fetch categories from API
+    const fetchCategories = async () => {
+      try {
+        const response = await axios.get('/api/services/categories/all');
+        if (response.data.success) {
+          setCategories(response.data.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch categories:', err);
+        // Fallback to default categories
+        setCategories([
+          { id: 1, name: 'Tech & IT' },
+          { id: 2, name: 'Home & Garden' },
+          { id: 3, name: 'Teaching & Tutoring' },
+          { id: 4, name: 'Health & Wellness' },
+          { id: 5, name: 'Beauty & Personal Care' },
+          { id: 6, name: 'Automotive' },
+          { id: 7, name: 'Events & Photography' },
+          { id: 8, name: 'Writing & Translation' },
+          { id: 9, name: 'Art & Craft' },
+          { id: 10, name: 'Business & Legal' },
+          { id: 11, name: 'Moving & Delivery' },
+          { id: 12, name: 'Cleaning & Laundry' }
+        ]);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -45,11 +67,50 @@ const CreateService = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Simulate service creation
-    alert('Service created successfully!');
-    navigate('/dashboard');
+    setIsLoading(true);
+    setError('');
+    setSuccess('');
+
+    // Check if user is logged in
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('You must be logged in to create a service');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const serviceData = {
+        title: formData.title,
+        description: formData.description,
+        category_id: parseInt(formData.category),
+        price: parseFloat(formData.price) || 0,
+        price_type: formData.priceType,
+        location: formData.location,
+        city: formData.city,
+        is_remote: formData.isRemote,
+        duration_minutes: parseInt(formData.duration)
+      };
+
+      const response = await axios.post('/api/services', serviceData, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (response.data.success) {
+        setSuccess('Service created successfully!');
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 1500);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to create service. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -64,6 +125,22 @@ const CreateService = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="service-form">
+          {error && (
+            <div className="error-message">
+              <AlertCircle size={18} />
+              <span>{error}</span>
+              <button type="button" className="close-error" onClick={() => setError('')}>
+                <X size={16} />
+              </button>
+            </div>
+          )}
+          {success && (
+            <div className="success-message">
+              <CheckCircle size={18} />
+              <span>{success}</span>
+            </div>
+          )}
+
           <div className="form-section">
             <h3>Basic Information</h3>
             
@@ -214,12 +291,21 @@ const CreateService = () => {
           </div>
 
           <div className="form-actions">
-            <button type="button" className="cancel-btn" onClick={() => navigate(-1)}>
+            <button type="button" className="cancel-btn" onClick={() => navigate(-1)} disabled={isLoading}>
               Cancel
             </button>
-            <button type="submit" className="submit-btn">
-              <Plus size={20} />
-              Publish Service
+            <button type="submit" className="submit-btn" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <div className="spinner"></div>
+                  Publishing...
+                </>
+              ) : (
+                <>
+                  <Plus size={20} />
+                  Publish Service
+                </>
+              )}
             </button>
           </div>
         </form>
