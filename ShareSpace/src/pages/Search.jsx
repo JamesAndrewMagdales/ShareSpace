@@ -11,6 +11,7 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 import axios from 'axios';
+import Sidebar from '../components/Sidebar';
 import './Search.css';
 
 const Search = () => {
@@ -221,81 +222,23 @@ const Search = () => {
         </form>
       </div>
 
-      <div className="search-content">
-        {/* Filters Sidebar */}
-        <aside className="filters-sidebar">
-          <div className="filter-section">
-            <h3>Categories</h3>
-            <div className="category-list">
-              {categoriesList.map((cat) => (
-                <label key={cat.id} className="category-item">
-                  <input
-                    type="radio"
-                    name="category"
-                    checked={selectedCategory === cat.id.toString()}
-                    onChange={() => handleCategoryChange(cat.id.toString())}
-                  />
-                  <span>{cat.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+       <div className="search-content">
+         <Sidebar 
+           categories={categoriesList} 
+           selectedCategory={selectedCategory}
+           onCategoryChange={(categoryName) => {
+             const params = new URLSearchParams(searchParams);
+             if (categoryName) {
+               params.set('category', categoryName);
+             } else {
+               params.delete('category');
+             }
+             setSearchParams(params);
+             setPage(1);
+           }}
+         />
 
-          <div className="filter-section">
-            <h3>Price Range</h3>
-            <div className="price-inputs">
-              <input
-                type="number"
-                placeholder="Min"
-                value={priceRange.min}
-                onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
-              />
-              <span>-</span>
-              <input
-                type="number"
-                placeholder="Max"
-                value={priceRange.max}
-                onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
-              />
-            </div>
-          </div>
 
-          <div className="filter-section">
-            <h3>Minimum Rating</h3>
-            <div className="rating-filters">
-              {[4, 3, 2, 1].map((rating) => (
-                <label key={rating} className="rating-item">
-                  <input
-                    type="radio"
-                    name="rating"
-                    checked={minRating === rating.toString()}
-                    onChange={() => setMinRating(rating === parseInt(minRating) ? '' : rating.toString())}
-                  />
-                  <span className="stars">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        size={14}
-                        fill={i < rating ? '#fbbf24' : 'none'}
-                        color="#fbbf24"
-                      />
-                    ))}
-                  </span>
-                  <span>& Up</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <button className="clear-filters-btn" onClick={() => {
-            setSelectedCategory('');
-            setPriceRange({ min: '', max: '' });
-            setMinRating('');
-            setSearchParams({});
-          }}>
-            Clear All Filters
-          </button>
-        </aside>
 
         {/* Results Section */}
         <main className="results-section">

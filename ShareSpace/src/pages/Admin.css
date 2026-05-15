@@ -473,6 +473,58 @@
   box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
 }
 
+.submit-btn.delete {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.submit-btn.delete:hover {
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+}
+
+/* Delete Modal Styles */
+.modal-body {
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.delete-warning-icon {
+  color: #ef4444;
+  margin-bottom: 1rem;
+}
+
+.delete-warning-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.delete-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.delete-user-info strong {
+  color: #1f2937;
+  font-size: 1rem;
+}
+
+.delete-user-info span {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.delete-warning-text {
+  color: #6b7280;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .admin-header {

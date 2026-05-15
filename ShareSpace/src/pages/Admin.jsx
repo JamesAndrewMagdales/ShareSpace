@@ -26,8 +26,11 @@ const Admin = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [deletingUser, setDeletingUser] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -167,7 +170,7 @@ const Admin = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
       } else {
-        await axios.post('/api/auth/register', payload, {
+        await axios.post('/api/users', payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
       }
@@ -178,17 +181,29 @@ const Admin = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to deactivate this user?')) return;
+  const openDeleteModal = (user) => {
+    setDeletingUser(user);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingUser) return;
+    setIsDeleting(true);
     
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`/api/users/${id}`, {
+      await axios.delete(`/api/users/${deletingUser.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      setShowDeleteModal(false);
+      setDeletingUser(null);
       fetchUsers();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to deactivate user');
+      setError(err.response?.data?.message || 'Failed to delete user');
+      setShowDeleteModal(false);
+      setDeletingUser(null);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -320,9 +335,8 @@ const Admin = () => {
                       </button>
                       <button 
                         className="action-btn delete"
-                        onClick={() => handleDelete(user.id)}
-                        title="Deactivate user"
-                        disabled={!user.is_active}
+                        onClick={() => openDeleteModal(user)}
+                        title="Delete user permanently"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -484,6 +498,49 @@ const Admin = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Confirm Delete User</h2>
+              <button className="close-btn" onClick={() => setShowDeleteModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="delete-warning-icon">
+                <AlertCircle size={48} />
+              </div>
+              <p className="delete-warning-title">Are you sure you want to permanently delete this user?</p>
+              <div className="delete-user-info">
+                <strong>{deletingUser?.first_name} {deletingUser?.last_name}</strong>
+                <span>{deletingUser?.email}</span>
+              </div>
+              <p className="delete-warning-text">
+                This action cannot be undone. The user will be permanently removed from the system and will no longer be able to log in.
+              </p>
+            </div>
+            <div className="modal-actions">
+              <button 
+                className="cancel-btn" 
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button 
+                className="submit-btn delete" 
+                onClick={confirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete User'}
+              </button>
+            </div>
           </div>
         </div>
       )}

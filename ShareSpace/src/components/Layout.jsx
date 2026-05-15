@@ -110,18 +110,20 @@ const Layout = () => {
             )}
           </div>
 
-          {/* Search Bar (Centered) */}
-          <form onSubmit={handleSearch} className="header-search centered-search">
-            <input
-              type="text"
-              placeholder="Search services..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <button type="submit">
-              <Search size={18} />
-            </button>
-          </form>
+          {/* Search Bar (Centered) - Hidden on Search page to avoid duplication */}
+          {location.pathname !== '/search' && (
+            <form onSubmit={handleSearch} className="header-search centered-search">
+              <input
+                type="text"
+                placeholder="Search services..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <button type="submit">
+                <Search size={18} />
+              </button>
+            </form>
+          )}
 
           {/* Mobile Menu Button */}
           <button

@@ -212,11 +212,11 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background: #fef2f2;
-  color: #dc2626;
+  background: hwb(0 63% 13%);
+  color: #d9a4a4;
   padding: 0.75rem;
   border-radius: 0.5rem;
-  border: 1px solid #fecaca;
+  border: 1px solid #d01f1f;
   font-weight: 600;
   transition: all 0.3s ease;
   cursor: pointer;
@@ -225,7 +225,7 @@
 }
 
 .logout-btn:hover {
-  background: #fee2e2;
+  background: #dda7a7;
   border-color: #fca5a5;
 }
 

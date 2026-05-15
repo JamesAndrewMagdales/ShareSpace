@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { 
   Plus, 
   Upload, 
   X,
   ArrowLeft,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  LayoutDashboard,
+  FileText,
+  MessageCircle,
+  Star,
+  Settings,
+  LogOut
 } from 'lucide-react';
 import axios from 'axios';
 import './CreateService.css';
@@ -113,8 +119,47 @@ const CreateService = () => {
     }
   };
 
+  // Navigation items for sidebar
+  const navItems = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard, path: '/dashboard' },
+    { id: 'services', label: 'My Services', icon: FileText, path: '/dashboard?tab=services' },
+    { id: 'requests', label: 'Requests', icon: MessageCircle, path: '/dashboard?tab=requests' },
+    { id: 'reviews', label: 'Reviews', icon: Star, path: '/dashboard?tab=reviews' },
+    { id: 'settings', label: 'Settings', icon: Settings, path: '/dashboard?tab=settings' },
+  ];
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
+
   return (
     <div className="create-service-page">
+      <aside className="create-service-sidebar">
+        <div className="sidebar-header">
+          <h2>ShareServe</h2>
+        </div>
+        <nav className="sidebar-nav">
+          {navItems.map((item) => (
+            <Link
+              key={item.id}
+              to={item.path}
+              className="sidebar-nav-item"
+            >
+              <item.icon size={20} />
+              <span>{item.label}</span>
+            </Link>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <button className="sidebar-logout-btn" onClick={handleLogout}>
+            <LogOut size={20} />
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+
       <div className="create-service-container">
         <div className="page-header">
           <button className="back-btn" onClick={() => navigate(-1)}>
