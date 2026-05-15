@@ -91,10 +91,7 @@ const Layout = () => {
           <div className="header-actions">
             {isLoggedIn ? (
               <>
-                <button className="action-btn logout-btn" onClick={handleLogout}>
-                  <LogOut size={20} />
-                  <span>Logout</span>
-                </button>
+                
               </>
             ) : (
               <>

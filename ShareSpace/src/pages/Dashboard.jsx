@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-  User, 
-  Star, 
-  FileText, 
-  MessageCircle, 
-  Plus, 
+import {
+  User,
+  Star,
+  FileText,
+  MessageCircle,
+  Plus,
   Settings,
   LogOut,
   Calendar,
@@ -17,7 +17,14 @@ import {
   Shield,
   Edit,
   Trash2,
-  X
+  X,
+  Layout,
+  Search as SearchIcon,
+  Filter,
+  MapPin,
+  Grid,
+  List,
+  ArrowUpDown
 } from 'lucide-react';
 import axios from 'axios';
 import './Dashboard.css';
@@ -25,7 +32,7 @@ import './Dashboard.css';
 const Dashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('marketplace');
   const [services, setServices] = useState([]);
   const [requests, setRequests] = useState([]);
   const [reviews, setReviews] = useState([]);
@@ -48,6 +55,34 @@ const Dashboard = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // Marketplace state
+  const [allServices, setAllServices] = useState([]);
+  const [marketplaceSearch, setMarketplaceSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+  const [minRating, setMinRating] = useState('');
+  const [sortBy, setSortBy] = useState('created_at');
+  const [viewMode, setViewMode] = useState('grid');
+  const [marketplacePage, setMarketplacePage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoadingMarketplace, setIsLoadingMarketplace] = useState(false);
+  const [categories, setCategories] = useState([]);
+
+  const categoriesList = [
+    { id: 1, name: 'Tech & IT' },
+    { id: 2, name: 'Home & Garden' },
+    { id: 3, name: 'Teaching & Tutoring' },
+    { id: 4, name: 'Health & Wellness' },
+    { id: 5, name: 'Beauty & Personal Care' },
+    { id: 6, name: 'Automotive' },
+    { id: 7, name: 'Events & Photography' },
+    { id: 8, name: 'Writing & Translation' },
+    { id: 9, name: 'Art & Craft' },
+    { id: 10, name: 'Business & Legal' },
+    { id: 11, name: 'Moving & Delivery' },
+    { id: 12, name: 'Cleaning & Laundry' }
+  ];
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -100,30 +135,80 @@ const Dashboard = () => {
       try {
         const reviewsResponse = await axios.get(`/api/users/${user.id}/reviews`);
         
-        if (reviewsResponse.data.success) {
-          setReviews(reviewsResponse.data.data || []);
+if (reviewsResponse.data.success) {
+             setReviews(reviewsResponse.data.data || []);
+           }
+       } catch (err) {
+         console.error('Error fetching reviews:', err);
+         setReviews([]);
+       }
+
+        // For requests, we'll use mock data for now as the requests API needs implementation
+        setRequests([
+          { id: 1, service: 'Web Development', client: 'Sarah Johnson', date: '2024-01-15', status: 'Pending' },
+          { id: 2, service: 'Graphic Design', client: 'Mike Chen', date: '2024-01-14', status: 'Accepted' },
+          { id: 3, service: 'Web Development', client: 'Emma Wilson', date: '2024-01-10', status: 'Completed' },
+        ]);
+
+        // Fetch categories
+        try {
+          const categoriesResponse = await axios.get('/api/services/categories/all');
+          if (categoriesResponse.data.success) {
+            setCategories(categoriesResponse.data.data || []);
+          }
+        } catch (err) {
+          console.error('Error fetching categories:', err);
+          setCategories(categoriesList.map(c => ({ id: c.id, name: c.name })));
         }
+
+        // Fetch marketplace services
+        fetchMarketplaceServices();
+
       } catch (err) {
-        console.error('Error fetching reviews:', err);
-        setReviews([]);
+        setError('Failed to load dashboard data');
+        console.error('Dashboard error:', err);
+      } finally {
+        setLoading(false);
       }
-
-      // For requests, we'll use mock data for now as the requests API needs implementation
-      setRequests([
-        { id: 1, service: 'Web Development', client: 'Sarah Johnson', date: '2024-01-15', status: 'Pending' },
-        { id: 2, service: 'Graphic Design', client: 'Mike Chen', date: '2024-01-14', status: 'Accepted' },
-        { id: 3, service: 'Web Development', client: 'Emma Wilson', date: '2024-01-10', status: 'Completed' },
-      ]);
-
-    } catch (err) {
-      setError('Failed to load dashboard data');
-      console.error('Dashboard error:', err);
-    } finally {
-      setLoading(false);
-    }
   };
 
-  const stats = {
+   const fetchMarketplaceServices = useCallback(async () => {
+     setIsLoadingMarketplace(true);
+     try {
+       const params = new URLSearchParams();
+       if (marketplaceSearch) params.set('search', marketplaceSearch);
+       if (selectedCategory) params.set('category', selectedCategory);
+       if (priceRange.min) params.set('minPrice', priceRange.min);
+       if (priceRange.max) params.set('maxPrice', priceRange.max);
+       if (minRating) params.set('minRating', minRating);
+       params.set('page', marketplacePage);
+       params.set('limit', 12);
+       params.set('sortBy', sortBy);
+
+       const response = await axios.get(`/api/services?${params.toString()}`);
+
+       if (response.data.success) {
+         setAllServices(response.data.data.services || []);
+         setTotalPages(response.data.data.pagination?.totalPages || 1);
+       }
+     } catch (err) {
+       console.error('Error fetching marketplace services:', err);
+       setAllServices([]);
+     } finally {
+       setIsLoadingMarketplace(false);
+     }
+   }, [marketplaceSearch, selectedCategory, priceRange, minRating, sortBy, marketplacePage]);
+
+   const formatPrice = (price, type) => {
+     return `₱${price.toLocaleString()}${type === 'Hourly' ? '/hr' : ''}`;
+   };
+
+   const handleMarketplaceSearch = (e) => {
+     e.preventDefault();
+     fetchMarketplaceServices();
+   };
+
+   const stats = {
     totalServices: services.length,
     activeRequests: requests.filter(r => r.status === 'Pending').length,
     completedJobs: requests.filter(r => r.status === 'Completed').length,
@@ -132,14 +217,15 @@ const Dashboard = () => {
     totalEarnings: 15600
   };
 
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: TrendingUp },
-    { id: 'services', label: 'My Services', icon: FileText },
-    { id: 'requests', label: 'Requests', icon: MessageCircle },
-    { id: 'reviews', label: 'Reviews', icon: Star },
-    { id: 'favorites', label: 'Favorites', icon: Heart },
-    { id: 'settings', label: 'Settings', icon: Settings },
-  ];
+const tabs = [
+     { id: 'marketplace', label: 'Services', icon: Layout },
+     { id: 'overview', label: 'Overview', icon: TrendingUp },
+     { id: 'services', label: 'My Services', icon: FileText },
+     { id: 'requests', label: 'Requests', icon: MessageCircle },
+     { id: 'reviews', label: 'Reviews', icon: Star },
+     { id: 'favorites', label: 'Favorites', icon: Heart },
+     { id: 'settings', label: 'Settings', icon: Settings },
+   ];
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -510,7 +596,7 @@ const Dashboard = () => {
             </div>
           )}
 
-          {activeTab === 'favorites' && (
+{activeTab === 'favorites' && (
             <div className="favorites-tab">
               <div className="section-header">
                 <h2>Saved Services</h2>
@@ -519,8 +605,201 @@ const Dashboard = () => {
                 <Heart size={48} />
                 <h3>No saved services yet</h3>
                 <p>Save services you're interested in to find them later</p>
-                <Link to="/search" className="browse-btn">Browse Services</Link>
+                <button className="browse-btn" onClick={() => setActiveTab('marketplace')}>Browse Marketplace</button>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'marketplace' && (
+            <div className="marketplace-tab">
+              {/* Marketplace Header with Search */}
+              <div className="marketplace-header">
+                <h2>Services</h2>
+                <p className="marketplace-subtitle">Discover amazing services from talented providers near you</p>
+              </div>
+
+              {/* Search & Filters Bar */}
+              <div className="marketplace-search-bar">
+                <form onSubmit={handleMarketplaceSearch} className="search-form-inline">
+                  <div className="search-input-group">
+                    <SearchIcon size={18} />
+                    <input
+                      type="text"
+                      placeholder="Search services..."
+                      value={marketplaceSearch}
+                      onChange={(e) => setMarketplaceSearch(e.target.value)}
+                    />
+                  </div>
+                  <button type="submit" className="search-btn">Search</button>
+                </form>
+
+                <div className="filter-actions">
+                  <div className="filter-dropdown">
+                    <Filter size={16} />
+                    <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+                      <option value="">All Categories</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="sort-dropdown">
+                    <ArrowUpDown size={16} />
+                    <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                      <option value="created_at">Newest</option>
+                      <option value="price">Price: Low to High</option>
+                      <option value="title">Name A-Z</option>
+                      <option value="u.rating_avg">Highest Rated</option>
+                    </select>
+                  </div>
+                  <div className="view-toggle">
+                    <button className={viewMode === 'grid' ? 'active' : ''} onClick={() => setViewMode('grid')}>
+                      <Grid size={18} />
+                    </button>
+                    <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
+                      <List size={18} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Price Range Filter */}
+              <div className="price-filter-row">
+                <div className="price-inputs">
+                  <input
+                    type="number"
+                    placeholder="Min ₱"
+                    value={priceRange.min}
+                    onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
+                  />
+                  <span>—</span>
+                  <input
+                    type="number"
+                    placeholder="Max ₱"
+                    value={priceRange.max}
+                    onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
+                  />
+                  <button className="apply-price-btn" onClick={fetchMarketplaceServices}>Apply</button>
+                </div>
+                <div className="rating-filter">
+                  <Star size={16} fill="#fbbf24" color="#fbbf24" />
+                  <input
+                    type="number"
+                    min="1"
+                    max="5"
+                    step="0.1"
+                    placeholder="Min rating"
+                    value={minRating}
+                    onChange={(e) => setMinRating(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Results Count */}
+              <div className="results-count">
+                <span>{allServices.length} services found</span>
+              </div>
+
+              {/* Loading State */}
+              {isLoadingMarketplace ? (
+                <div className="loading-state">
+                  <div className="spinner"></div>
+                  <p>Loading services...</p>
+                </div>
+              ) : allServices.length === 0 ? (
+                <div className="empty-state">
+                  <Layout size={48} />
+                  <h3>No services found</h3>
+                  <p>Try adjusting your search or filters</p>
+                  <button className="browse-btn" onClick={() => {
+                    setMarketplaceSearch('');
+                    setSelectedCategory('');
+                    setPriceRange({ min: '', max: '' });
+                    setMinRating('');
+                    fetchMarketplaceServices();
+                  }}>Clear Filters</button>
+                </div>
+              ) : (
+                <>
+                  {/* Services Grid - Facebook Marketplace Style */}
+                  <div className={`services-grid marketplace-grid ${viewMode}`}>
+                    {allServices.map((service) => (
+                      <div key={service.id} className="service-card marketplace-card" onClick={() => navigate(`/services/${service.id}`)}>
+                        <div className="service-image">
+                          {service.image ? (
+                            <img src={service.image} alt={service.title} />
+                          ) : (
+                            <div className="placeholder-image">
+                              <Layout size={48} />
+                            </div>
+                          )}
+                          <span className="service-price">{formatPrice(service.price, service.price_type)}</span>
+                          {service.is_remote && <span className="remote-badge">Remote</span>}
+                        </div>
+                        <div className="service-content">
+                          <span className="service-category">{service.category_name}</span>
+                          <h3>{service.title}</h3>
+                          <p className="service-description">{service.description}</p>
+                          <div className="service-provider">
+                            <div className="provider-avatar-small">
+                              {service.provider_name?.charAt(0) || '?'}
+                            </div>
+                            <span className="provider-name">{service.provider_name}</span>
+                            {service.provider_verified && <span className="verified-badge">✓</span>}
+                            <span className="provider-rating">
+                              <Star size={14} fill="#fbbf24" color="#fbbf24" />
+                              {service.provider_rating}
+                            </span>
+                          </div>
+                          <div className="service-location">
+                            <MapPin size={14} />
+                            {service.city}{service.location ? `, ${service.location}` : ''}
+                          </div>
+                          <div className="service-meta">
+                            <span className="meta-item">
+                              <Clock size={14} />
+                              {service.duration_minutes} min
+                            </span>
+                            <span className="meta-item">
+                              <Star size={14} />
+                              {service.views_count || 0} views
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="pagination">
+                      <button
+                        disabled={marketplacePage === 1}
+                        onClick={() => setMarketplacePage(marketplacePage - 1)}
+                        className="pagination-btn"
+                      >
+                        ← Previous
+                      </button>
+                      {[...Array(totalPages)].map((_, i) => (
+                        <button
+                          key={i}
+                          className={`pagination-btn ${marketplacePage === i + 1 ? 'active' : ''}`}
+                          onClick={() => setMarketplacePage(i + 1)}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                      <button
+                        disabled={marketplacePage === totalPages}
+                        onClick={() => setMarketplacePage(marketplacePage + 1)}
+                        className="pagination-btn"
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
